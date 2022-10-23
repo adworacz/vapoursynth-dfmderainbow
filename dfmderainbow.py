@@ -124,8 +124,15 @@ DFMDerainbowMC
 
 Supports 8-16 bit integer formats. No interlaced support, progressive only!
 
+Parameters: 
+* maskthresh - Same as DFMDerainbow
+* radius - Same as DFMDerainbow, with the addition of motion compensation.
+* motion_vectors - List of clips from which to reuse motion vectors, instead of calling mv.Analyse internally.
+* mask - boolean or a clip. If true, uses a default Prewitt edge mask to only derainbow on edges. If false, no edge mask is used.
+         If a clip, used as a mask instead of calling Prewitt. Only the first plane of the clip is used as a mask, all other planes are ignored.
+
 """
-def DFMDerainbowMC(clip, maskthresh=12, radius=1, motion_vectors=None):
+def DFMDerainbowMC(clip, maskthresh=12, radius=1, motion_vectors=None, mask=True):
     # Do inverse telecine first.
 
     if radius < 1 or radius > 2:
@@ -185,8 +192,14 @@ def DFMDerainbowMC(clip, maskthresh=12, radius=1, motion_vectors=None):
 
     derainbowed = core.std.SelectEvery(clip=derainbowed, cycle=radius * 2 + 1, offsets=radius)
 
-    derbmask = clip.std.Prewitt(planes=0) #.std.Deflate(planes=0)
-    
-    derainbowed = core.std.MaskedMerge(clipa=clip, clipb=derainbowed, mask=derbmask, first_plane=True, planes=[1, 2])
+    if not isinstance(mask, (bool, vs.VideoNode)): 
+        raise vs.Error('DFMDerainbowMC: mask parameter is not a boolean or a clip.')
 
+    if isinstance(mask, bool) and mask == True: 
+        derbmask = clip.std.Prewitt(planes=0) #.std.Deflate(planes=0)
+        derainbowed = core.std.MaskedMerge(clipa=clip, clipb=derainbowed, mask=derbmask, first_plane=True, planes=[1, 2])
+    elif isinstance(mask, vs.VideoNode):
+        derbmask = mask
+        derainbowed = core.std.MaskedMerge(clipa=clip, clipb=derainbowed, mask=derbmask, first_plane=True, planes=[1, 2])
+    
     return derainbowed
